@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Support Bot</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        #chatbox { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; background: #f9f9f9; }
+        #input-container { display: flex; }
+        #query { flex: 1; padding: 10px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .user { color: blue; }
+        .bot { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Customer Support Chatbot</h1>
+    <div id="chatbox"></div>
+    <div id="input-container">
+        <input type="text" id="query" placeholder="Type your question..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    <script>
+        const sessionId = '<%= sessionId %>';
+        const chatbox = document.getElementById('chatbox');
+
+        function appendMessage(role, content, className) {
+            const div = document.createElement('div');
+            div.className = className;
+            div.innerHTML = `<strong>${role}:</strong> ${content}`;
+            chatbox.appendChild(div);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const queryInput = document.getElementById('query');
+            const query = queryInput.value.trim();
+            if (!query) return;
+            appendMessage('You', query, 'user');
+            queryInput.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, sessionId })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    appendMessage('System', data.error, 'bot');
+                    return;
+                }
+                appendMessage('Bot', data.answer, 'bot');
+                if (data.suggestion) appendMessage('Bot', `<em>${data.suggestion}</em>`, 'bot');
+                if (data.escalate) {
+                    appendMessage('System', 'Escalating to human agent...', 'bot');
+                    // Optional: Disable input
+                }
+            } catch (err) {
+                appendMessage('System', 'Connection error: ' + err.message, 'bot');
+            }
+        }
+    </script>
+</body>
+</html>
